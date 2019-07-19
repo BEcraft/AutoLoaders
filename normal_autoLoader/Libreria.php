@@ -12,8 +12,16 @@ class Libreria
 
     /**
      * Lista de proyectos cargados.
+     * @var array
      */
     private $libros = [];
+
+
+    /**
+     * Bandera del proyecto.
+     * @var int
+     */
+    private static $bandera = 0x00;
 
 
     /**
@@ -47,7 +55,7 @@ class Libreria
     /**
      * Constructor de la clase.
      */
-    public function __construct(string $directorio = "", string $titulo = "", array $excluir = [])
+    public function __construct(string $directorio = "", string $titulo = "", array $excluir = [], int $bandera = 0x00)
     {
         if (!($this->registrar()))
         {
@@ -60,6 +68,18 @@ class Libreria
         {
             $this->agregarLibro($directorio, $titulo, $excluir);
         }
+
+        self::$bandera |= $bandera;
+    }
+
+
+
+    /**
+     * @return int
+     */
+    public static function conseguirBandera(): int
+    {
+        return self::$bandera;
     }
 
 
@@ -71,7 +91,7 @@ class Libreria
      */
     public function conseguirLibro(string $libro): ?Libro
     {
-        if (!(isset($this->libros[$libro])))
+        if (!($this->existe($libro)))
         {
             return null;
         }
@@ -82,19 +102,20 @@ class Libreria
 
 
     /**
-     *
      * Asigna el directorio de donde se cargarán las librerias.
      *
      * @param string $directorio
+     *
+     * @return bool
      */
-    public function asignarDirectorioPrincipal(string $directorio): void
+    public function asignarDirectorioPrincipal(string $directorio): bool
     {
         if (!(is_dir($directorio)))
         {
-            $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return;
+            $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return false;
         }
 
-        $this->directorioPrincipal = $directorio;
+        $this->directorioPrincipal = $directorio; return true;
     }
 
 
@@ -118,7 +139,7 @@ class Libreria
      */
     public function registrar(): bool
     {
-        return @spl_autoload_register([$this, "leerPagina"]);
+        return spl_autoload_register([$this, "leerPagina"]);
     }
 
 
@@ -130,7 +151,7 @@ class Libreria
      */
     private function asignarError(string $error): void
     {
-        $this->ultimoError = ($error . PHP_EOL);
+        $this->ultimoError = rtrim($error, PHP_EOL) . PHP_EOL;
     }
 
 
@@ -151,8 +172,18 @@ class Libreria
             $this->asignarError($libro ?? "¡ERROR DESCONOCIDO!"); return null;
         }
 
+        if ((self::$bandera & MANTENER_LECTORES))
+        {
+            $archivo = basename(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]["file"]);
+            $leyendo = $libro->leyendo($pagina, $archivo);
+        }
+        else
+        {
+            $archivo = "";
+            $leyendo = false;
+        }
 
-        if (!($libro->existe($pagina)) || ($leyendo = $libro->leyendo($pagina, ($archivo = basename(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]["file"])))))
+        if (!($libro->existe($pagina)) || $leyendo)
         {
 
             if (!($leyendo))
@@ -209,7 +240,9 @@ class Libreria
                 return sprintf(self::MENSAJES["espacio.fantasma"], $titulo);
             }
 
-            if (is_dir($directorio = $this->conseguirDirectorioPrincipal() . $titulo))
+            $directorio = $this->conseguirDirectorioPrincipal() . $titulo;
+
+            if (is_dir($directorio))
             {
                 $this->agregarLibro($directorio, $titulo);
             }
@@ -268,7 +301,7 @@ class Libreria
      */
     public function eliminarLibro(string $libro): void
     {
-        if (isset($this->libros[$libro]))
+        if ($this->existe($libro))
         {
             unset($this->libros[$libro]);
         }
@@ -277,6 +310,9 @@ class Libreria
 
 
 }
+
+
+define("MANTENER_LECTORES", 0x02);
 
 
 if (!(@include_once(__DIR__ . DIRECTORY_SEPARATOR . "Libro.php")))

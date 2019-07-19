@@ -13,6 +13,13 @@ class Libreria extends Volatile
 
 
     /**
+     * Bandera del proyecto.
+     * @var int
+     */
+    private static $bandera = 0x00;
+
+
+    /**
      * Lista de mensajes de la libreria.
      * @var array
      */
@@ -43,7 +50,7 @@ class Libreria extends Volatile
     /**
      * Constructor de la clase.
      */
-    public function __construct(string $direccion = "", string $titulo = "", array $excluir = [])
+    public function __construct(string $direccion = "", string $titulo = "", array $excluir = [], int $bandera = 0x00)
     {
         if (!($this->registrar()))
         {
@@ -56,6 +63,18 @@ class Libreria extends Volatile
         {
             $this->agregarLibro($direccion, $titulo, $excluir);
         }
+
+        self::$bandera |= $bandera;
+    }
+
+
+
+    /**
+     * @return int
+     */
+    public static function conseguirBandera(): int
+    {
+        return self::$bandera;
     }
 
 
@@ -67,7 +86,7 @@ class Libreria extends Volatile
      */
     public function conseguirLibro(string $libro): ?Libro
     {
-        if (!(isset($this->{$libro})))
+        if (!($this->existe($libro)))
         {
             return null;
         }
@@ -83,14 +102,14 @@ class Libreria extends Volatile
      *
      * @param string $directorio
      */
-    public function asignarDirectorioPrincipal(string $directorio): void
+    public function asignarDirectorioPrincipal(string $directorio): bool
     {
         if (!(is_dir($directorio)))
         {
-            $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return;
+            $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return false;
         }
 
-        $this->directorioPrincipal = $directorio;
+        $this->directorioPrincipal = $directorio; return true;
     }
 
 
@@ -114,7 +133,7 @@ class Libreria extends Volatile
      */
     public function registrar(): bool
     {
-        return @spl_autoload_register([$this, "leerPagina"]);
+        return spl_autoload_register([$this, "leerPagina"]);
     }
 
 
@@ -126,7 +145,7 @@ class Libreria extends Volatile
      */
     private function asignarError(string $error): void
     {
-        $this->ultimoError = ($error . PHP_EOL);
+        $this->ultimoError = rtrim($error, PHP_EOL) . PHP_EOL;
     }
 
 
@@ -147,8 +166,18 @@ class Libreria extends Volatile
             $this->asignarError($libro ?? "¡ERROR DESCONOCIDO!"); return null;
         }
 
+        if ((self::$bandera & MANTENER_LECTORES))
+        {
+            $archivo = basename(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]["file"]);
+            $leyendo = $libro->leyendo($pagina, $archivo);
+        }
+        else
+        {
+            $archivo = "";
+            $leyendo = false;
+        }
 
-        if (!($libro->existe($pagina)) || ($leyendo = $libro->leyendo($pagina, ($archivo = basename(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)[1]["file"])))))
+        if (!($libro->existe($pagina)) || $leyendo)
         {
 
             if (!($leyendo))
@@ -264,7 +293,7 @@ class Libreria extends Volatile
      */
     public function eliminarLibro(string $libro): void
     {
-        if (isset($this->{$libro}))
+        if ($this->existe($libro))
         {
             unset($this->{$libro});
         }
@@ -274,6 +303,8 @@ class Libreria extends Volatile
 
 }
 
+
+define("MANTENER_LECTORES", 0x02);
 
 
 if (!(extension_loaded("pthreads")))

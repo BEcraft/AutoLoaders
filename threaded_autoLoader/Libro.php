@@ -33,7 +33,13 @@ class Libro extends Threaded
 
     public function __construct(string $directorio, string $titulo, array $excluir = [])
     {
-        $this->directorio = $directorio;
+
+        if (defined("MANTENER_LECTORES") === false)
+        {
+            throw new Exception("Debes instanciar la clase 'Libreria' en primer lugar.");
+        }
+
+        $this->directorio = rtrim($directorio, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $this->titulo     = $titulo;
         $archivos         = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->directorio, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 
@@ -56,8 +62,6 @@ class Libro extends Threaded
             $this->{$this->conseguirIdentificador($archivo->getRealPath())} = $libro;
         }
 
-
-        $this->directorio = $directorio;
     }
 
 
@@ -67,16 +71,20 @@ class Libro extends Threaded
      *
      * @return null | Threaded
      */
-    public function conseguirLectores(string $pagina): ?Threaded
+    public function conseguirLectores(string $pagina): Threaded
     {
-        $pagina = $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
-
-        if ($this->existe($pagina))
+        if ((Libreria::conseguirBandera() & MANTENER_LECTORES))
         {
-            return $this->{$pagina}["leyendo"];
+            $pagina = $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
+
+            if ($this->existe($pagina))
+            {
+                return $this->{$pagina}["leyendo"];
+            }
+
         }
 
-        return null;
+        return new Threaded();
     }
 
 
@@ -88,7 +96,7 @@ class Libro extends Threaded
      */
     public function conseguirIdentificador(string $directorio): string
     {
-        return str_replace([DIRECTORY_SEPARATOR, ".php"], ["\\", ""], substr($directorio, strlen($this->directorio) + 1, strlen($directorio)));
+        return str_replace([DIRECTORY_SEPARATOR, ".php"], ["\\", ""], substr($directorio, strlen($this->directorio), strlen($directorio)));
     }
 
 
@@ -110,7 +118,10 @@ class Libro extends Threaded
             return false;
         }
 
-        $this->{$pagina}["leyendo"][$lector] = time();
+        if ((Libreria::conseguirBandera() & MANTENER_LECTORES))
+        {
+            $this->{$pagina}["leyendo"][$lector] = time();
+        }
 
         return include_once($this->{$pagina}["directorio"]);
     }

@@ -12,6 +12,7 @@ class Libro
 
     /**
      * Clases del proyecto.
+     * @var array
      */
     private $paginas = [];
 
@@ -33,7 +34,13 @@ class Libro
 
     public function __construct(string $directorio, string $titulo, array $excluir = [])
     {
-        $this->directorio = $directorio;
+
+        if (defined("MANTENER_LECTORES") === false)
+        {
+            throw new Exception("Debes instanciar la clase 'Libreria' en primer lugar.");
+        }
+
+        $this->directorio = rtrim($directorio, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $this->titulo     = $titulo;
         $archivos         = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->directorio, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
 
@@ -65,16 +72,20 @@ class Libro
      *
      * @return null | Threaded
      */
-    public function conseguirLectores(string $pagina): ?array
+    public function conseguirLectores(string $pagina): array
     {
-        $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
-
-        if ($this->existe($pagina))
+        if ((Libreria::conseguirBandera() & MANTENER_LECTORES))
         {
-            return $this->paginas[$pagina]["leyendo"];
+            $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
+
+            if ($this->existe($pagina))
+            {
+                return $this->paginas[$pagina]["leyendo"];
+            }
+
         }
 
-        return null;
+        return [];
     }
 
 
@@ -86,7 +97,7 @@ class Libro
      */
     public function conseguirIdentificador(string $directorio): string
     {
-        return str_replace([DIRECTORY_SEPARATOR, ".php"], ["\\", ""], substr($directorio, strlen($this->directorio) + 1, strlen($directorio)));
+        return str_replace([DIRECTORY_SEPARATOR, ".php"], ["\\", ""], substr($directorio, strlen($this->directorio), strlen($directorio)));
     }
 
 
@@ -108,7 +119,11 @@ class Libro
             return false;
         }
 
-        $this->paginas[$pagina]["leyendo"][$lector] = time();
+        if ((Libreria::conseguirBandera() & MANTENER_LECTORES))
+        {
+            $this->paginas[$pagina]["leyendo"][$lector] = time();
+        }
+
         return include_once($this->paginas[$pagina]["directorio"]);
     }
 
