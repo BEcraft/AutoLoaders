@@ -33,7 +33,8 @@ class Libreria
         "espacio.fantasma"     => "El nombre de espacio '%s' no existe, verífica que todo esté correcto.",
         "espacio.incorrecto"   => "No se ha podido desifrar el nombre de espacio '%s' (muy corto).",
         "directorio.fantasma"  => "La ruta %s no existe, ¿Es está la ruta correcta?",
-        "directorio.principal" => "La ruta %s para el directorio principal no existe."
+        "directorio.principal" => "La ruta %s para el directorio principal no existe.",
+        "libreria.fantasma"    => "No se ha podido encontrar la libreria '%s' en la ruta '%s'."
     ];
 
 
@@ -91,12 +92,7 @@ class Libreria
      */
     public function conseguirLibro(string $libro): ?Libro
     {
-        if (!($this->existe($libro)))
-        {
-            return null;
-        }
-
-        return $this->libros[$libro];
+        return ($this->libros[$libro] ?? null);
     }
 
 
@@ -110,7 +106,7 @@ class Libreria
      */
     public function asignarDirectorioPrincipal(string $directorio): bool
     {
-        if (!(is_dir($directorio)))
+        if ( ! (is_dir($directorio)))
         {
             $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return false;
         }
@@ -167,7 +163,7 @@ class Libreria
     {
         $libro = $this->buscarPagina($busqueda, $pagina);
 
-        if (!($libro instanceof Libro))
+        if ( ! ($libro instanceof Libro))
         {
             $this->asignarError($libro ?? "¡ERROR DESCONOCIDO!"); return null;
         }
@@ -183,10 +179,10 @@ class Libreria
             $leyendo = false;
         }
 
-        if (!($libro->existe($pagina)) || $leyendo)
+        if ( ! ($libro->existe($pagina)) || $leyendo)
         {
 
-            if (!($leyendo))
+            if ( ! ($leyendo))
             {
                 $this->asignarError(sprintf(self::MENSAJES["clase.fantasma"], $pagina));
             }
@@ -214,6 +210,34 @@ class Libreria
 
 
     /**
+     * Consigue x libreria por un nombre de espacio, muy útil cuando
+     * el nombre de espacio principal es algo como "auto\Loader" y no "autoLoader".
+     *
+     * @param string $titulo Nombre de espacio de la clasea buscar.
+     */
+    public function encontrarLibro(string $titulo): string
+    {
+        foreach (array_keys($this->libros) as $libro)
+        {
+            if (strpos($titulo, $libro) === false)
+            {
+                continue;
+            }
+
+            $similar = substr($titulo, 0, strlen($libro));
+
+            if ($similar === $libro)
+            {
+                return $similar;
+            }
+        }
+
+        return "";
+    }
+
+
+
+    /**
      * Conseguir el almacenamiento para cierta clase.
      *
      * @param string $busqueda Clase con nombre de espacio a buscar.
@@ -223,33 +247,39 @@ class Libreria
      */
     private function buscarPagina(string $busqueda, &$pagina)
     {
-        $componentes = (array) explode("\\", $busqueda);
+        $titulo = $this->encontrarLibro($busqueda);
 
-        if (1 >= count($componentes))
+        if ($titulo !== "")
         {
-            return sprintf(self::MENSAJES["espacio.incorrecto"], implode(DIRECTORY_SEPARATOR, $componentes));
+            $componentes = (array) explode("\\", substr($busqueda, strlen($titulo . "\\")));
+
+            if (1 >= count($componentes))
+            {
+                return sprintf(self::MENSAJES["espacio.incorrecto"], implode(DIRECTORY_SEPARATOR, $componentes));
+            }
+
         }
 
-        $titulo = array_shift($componentes);
-
-        if (!($this->existe($titulo)))
+        if ( ! ($this->existe($titulo)) && $titulo)
         {
 
-            if (!($this->conseguirDirectorioPrincipal()))
+            if ( ! ($this->conseguirDirectorioPrincipal()))
             {
                 return sprintf(self::MENSAJES["espacio.fantasma"], $titulo);
             }
 
             $directorio = $this->conseguirDirectorioPrincipal() . $titulo;
 
-            if (is_dir($directorio))
+            if ( ! (is_dir($directorio)))
             {
-                $this->agregarLibro($directorio, $titulo);
+                return sprintf(self::MENSAJES["libreria.fantasma"], $titulo, $directorio);
             }
+
+            $this->agregarLibro($titulo, $directorio);
 
         }
 
-        $pagina = implode("\\", $componentes);
+        $pagina = implode("\\", ($componentes ?? []));
 
         return $this->libros[$titulo];
     }
@@ -279,17 +309,19 @@ class Libreria
      */
     public function agregarLibro(string $directorio, string $titulo, array $excluir = []): bool
     {
-        if (!(is_dir($directorio)))
+        if ( ! (is_dir($directorio)))
         {
             trigger_error(sprintf(self::MENSAJES["directorio.fantasma"], $directorio), E_USER_WARNING); return false;
         }
 
-        if (!(isset($this->libros[$titulo])))
+        $titulo = rtrim($titulo, "\\/");
+
+        if ( ! (isset($this->libros[$titulo])))
         {
-            $this->libros[$titulo] = new Libro($directorio, $titulo, $excluir); return true;
+            $this->libros[$titulo] = new Libro($directorio, $titulo, $excluir);
         }
 
-        return false;
+        return true;
     }
 
 

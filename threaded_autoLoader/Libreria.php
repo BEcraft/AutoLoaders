@@ -28,7 +28,8 @@ class Libreria extends Volatile
         "espacio.fantasma"     => "El nombre de espacio '%s' no existe, verífica que todo esté correcto.",
         "espacio.incorrecto"   => "No se ha podido desifrar el nombre de espacio '%s' (muy corto).",
         "directorio.fantasma"  => "La ruta %s no existe, ¿Es está la ruta correcta?",
-        "directorio.principal" => "La ruta %s para el directorio principal no existe."
+        "directorio.principal" => "La ruta %s para el directorio principal no existe.",
+        "libreria.fantasma"    => "No se ha podido encontrar la libreria '%s' en la ruta '%s'."
     ];
 
 
@@ -52,7 +53,7 @@ class Libreria extends Volatile
      */
     public function __construct(string $direccion = "", string $titulo = "", array $excluir = [], int $bandera = 0x00)
     {
-        if (!($this->registrar()))
+        if ( ! ($this->registrar()))
         {
             throw new ErrorException("No se ha podido registrar el cargador.");
         }
@@ -86,25 +87,19 @@ class Libreria extends Volatile
      */
     public function conseguirLibro(string $libro): ?Libro
     {
-        if (!($this->existe($libro)))
-        {
-            return null;
-        }
-
-        return $this->{$libro};
+        return ($this->{$libro} ?? null);
     }
 
 
 
     /**
-     *
      * Asigna el directorio de donde se cargarán las librerias.
      *
      * @param string $directorio
      */
     public function asignarDirectorioPrincipal(string $directorio): bool
     {
-        if (!(is_dir($directorio)))
+        if ( ! (is_dir($directorio)))
         {
             $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return false;
         }
@@ -161,7 +156,7 @@ class Libreria extends Volatile
     {
         $libro = $this->buscarPagina($busqueda, $pagina);
 
-        if (!($libro instanceof Libro))
+        if ( ! ($libro instanceof Libro))
         {
             $this->asignarError($libro ?? "¡ERROR DESCONOCIDO!"); return null;
         }
@@ -177,10 +172,10 @@ class Libreria extends Volatile
             $leyendo = false;
         }
 
-        if (!($libro->existe($pagina)) || $leyendo)
+        if ( ! ($libro->existe($pagina)) || $leyendo)
         {
 
-            if (!($leyendo))
+            if ( ! ($leyendo))
             {
                 $this->asignarError(sprintf(self::MENSAJES["clase.fantasma"], $pagina));
             }
@@ -208,6 +203,34 @@ class Libreria extends Volatile
 
 
     /**
+     * Consigue x libreria por un nombre de espacio, muy útil cuando
+     * el nombre de espacio principal es algo como "auto\Loader" y no "autoLoader".
+     *
+     * @param string $titulo Nombre de espacio de la clasea buscar.
+     */
+    public function encontrarLibro(string $titulo): string
+    {
+        foreach (array_keys((array) $this) as $libro)
+        {
+            if (strpos($titulo, $libro) === false)
+            {
+                continue;
+            }
+
+            $similar = substr($titulo, 0, strlen($libro));
+
+            if ($similar === $libro)
+            {
+                return $similar;
+            }
+        }
+
+        return "";
+    }
+
+
+
+    /**
      * Conseguir el almacenamiento para cierta clase.
      *
      * @param string $busqueda Clase con nombre de espacio a buscar.
@@ -217,31 +240,39 @@ class Libreria extends Volatile
      */
     private function buscarPagina(string $busqueda, &$pagina)
     {
-        $componentes = (array) explode("\\", $busqueda);
+        $titulo = $this->encontrarLibro($busqueda);
 
-        if (1 >= count($componentes))
+        if ($titulo !== "")
         {
-            return sprintf(self::MENSAJES["espacio.incorrecto"], implode(DIRECTORY_SEPARATOR, $componentes));
+            $componentes = (array) explode("\\", substr($busqueda, strlen($titulo . "\\")));
+
+            if (1 >= count($componentes))
+            {
+                return sprintf(self::MENSAJES["espacio.incorrecto"], implode(DIRECTORY_SEPARATOR, $componentes));
+            }
+
         }
 
-        $titulo = array_shift($componentes);
-
-        if (!($this->existe($titulo)))
+        if ( ! ($this->existe($titulo)) && $titulo)
         {
 
-            if (!($this->conseguirDirectorioPrincipal()))
+            if ( ! ($this->conseguirDirectorioPrincipal()))
             {
                 return sprintf(self::MENSAJES["espacio.fantasma"], $titulo);
             }
 
-            if (is_dir($directorio = $this->conseguirDirectorioPrincipal() . $titulo))
+            $directorio = $this->conseguirDirectorioPrincipal() . $titulo;
+
+            if ( ! (is_dir($directorio)))
             {
-                $this->agregarLibro($directorio, $titulo);
+                return sprintf(self::MENSAJES["libreria.fantasma"], $titulo, $directorio);
             }
+
+            $this->agregarLibro($titulo, $directorio);
 
         }
 
-        $pagina = implode("\\", $componentes);
+        $pagina = implode("\\", ($componentes ?? []));
 
         return $this->{$titulo};
     }
@@ -271,17 +302,19 @@ class Libreria extends Volatile
      */
     public function agregarLibro(string $direccion, string $titulo, array $excluir = []): bool
     {
-        if (!(is_dir($direccion)))
+        if ( ! (is_dir($direccion)))
         {
             trigger_error(sprintf(self::MENSAJES["directorio.fantasma"], $direccion), E_USER_WARNING); return false;
         }
 
-        if (!(isset($this->{$titulo})))
+        $titulo = rtrim($titulo, "\\/");
+
+        if ( ! (isset($this->{$titulo})))
         {
-            $this->{$titulo} = new Libro($direccion, $titulo, $excluir); return true;
+            $this->{$titulo} = new Libro($direccion, $titulo, $excluir);
         }
 
-        return false;
+        return true;
     }
 
 

@@ -56,9 +56,10 @@ class Libro
                 continue;
             }
 
-            $libro               = [];
-            $libro["directorio"] = $archivo->getRealPath();
-            $libro["leyendo"]    = [];
+            $libro = [
+                "directorio" => $archivo->getRealPath(),
+                "leyendo"    => []
+            ];
 
             $this->paginas[$this->conseguirIdentificador($archivo->getRealPath())] = $libro;
         }
@@ -114,7 +115,7 @@ class Libro
     {
         $pagina = str_replace(DIRECTORY_SEPARATOR, "\\", $pagina);
 
-        if (!($this->existe($pagina)))
+        if ( ! ($this->existe($pagina)))
         {
             return false;
         }
@@ -132,11 +133,11 @@ class Libro
     /**
      * Verífica si cierto archivo incluyó cierta clase.
      *
-     * @return int
+     * @return bool
      */
-    public function leyendo(string $pagina, string $lector): int
+    public function leyendo(string $pagina, string $lector): bool
     {
-        return (isset($this->paginas[$pagina]["leyendo"][$lector]) ?? 0);
+        return isset($this->paginas[$pagina]["leyendo"][$lector]);
     }
 
 

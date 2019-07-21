@@ -75,7 +75,7 @@ class Libro extends Threaded
     {
         if ((Libreria::conseguirBandera() & MANTENER_LECTORES))
         {
-            $pagina = $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
+            $pagina = substr($pagina, strlen($this->titulo) + 1, strlen($pagina));
 
             if ($this->existe($pagina))
             {
@@ -113,7 +113,7 @@ class Libro extends Threaded
     {
         $pagina = str_replace(DIRECTORY_SEPARATOR, "\\", $pagina);
 
-        if (!($this->existe($pagina)))
+        if ( ! ($this->existe($pagina)))
         {
             return false;
         }
@@ -131,11 +131,11 @@ class Libro extends Threaded
     /**
      * Verífica si cierto archivo incluyó cierta clase.
      *
-     * @return int
+     * @return bool
      */
-    public function leyendo(string $pagina, string $lector): int
+    public function leyendo(string $pagina, string $lector): bool
     {
-        return (isset($this->{$pagina}["leyendo"][$lector]) ?? 0);
+        return isset($this->{$pagina}["leyendo"][$lector]);
     }
 
 

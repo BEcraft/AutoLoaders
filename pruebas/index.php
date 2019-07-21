@@ -32,7 +32,7 @@ $cc = new CC();
 $libro = $libreria->conseguirLibro("app");
 
 
-# Ver que archivos han incluido x clase:
+# Ver que archivos han incluido x clase (solo si se ha pasado la bandera 'MANTENER_LECTORES' al instanciar la libreria):
 $lectores = $libro->conseguirLectores(CC::class);
 
 
