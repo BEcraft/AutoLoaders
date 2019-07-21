@@ -58,7 +58,7 @@ class Libreria
      */
     public function __construct(string $directorio = "", string $titulo = "", array $excluir = [], int $bandera = 0x00)
     {
-        if (!($this->registrar()))
+        if ( ! ($this->registrar()))
         {
             throw new ErrorException("No se ha podido registrar el cargador.");
         }
@@ -111,7 +111,7 @@ class Libreria
             $this->asignarError(sprintf(self::MENSAJES["directorio.principal"], $directorio)); return false;
         }
 
-        $this->directorioPrincipal = $directorio; return true;
+        $this->directorioPrincipal = rtrim($directorio, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR; return true;
     }
 
 
@@ -147,7 +147,7 @@ class Libreria
      */
     private function asignarError(string $error): void
     {
-        $this->ultimoError = rtrim($error, PHP_EOL) . PHP_EOL;
+        $this->ultimoError = $error;
     }
 
 
@@ -251,13 +251,21 @@ class Libreria
 
         if ($titulo !== "")
         {
-            $componentes = (array) explode("\\", substr($busqueda, strlen($titulo . "\\")));
+            $componentes = explode("\\", substr($busqueda, strlen($titulo . "\\")));
 
             if (1 >= count($componentes))
             {
                 return sprintf(self::MENSAJES["espacio.incorrecto"], implode(DIRECTORY_SEPARATOR, $componentes));
             }
 
+        }
+        else
+        {
+            if ($this->conseguirDirectorioPrincipal())
+            {
+                $componentes = explode("\\", $busqueda);
+                $titulo      = array_shift($componentes);
+            }
         }
 
         if ( ! ($this->existe($titulo)) && $titulo)
@@ -275,7 +283,7 @@ class Libreria
                 return sprintf(self::MENSAJES["libreria.fantasma"], $titulo, $directorio);
             }
 
-            $this->agregarLibro($titulo, $directorio);
+            $this->agregarLibro($directorio, $titulo);
 
         }
 
@@ -302,8 +310,8 @@ class Libreria
      * Agrega un nuevo proyecto.
      *
      * @param  string $directorio Ruta al proyecto.
-     * @param  string $titulo    Nombre de espacio del proyecto.
-     * @param  string $excluir   Carpetas las cuales no se incluirán al cargar la el proyecto.
+     * @param  string $titulo     Nombre de espacio del proyecto.
+     * @param  array  $excluir    Carpetas las cuales no se incluirán al cargar la el proyecto.
      *
      * @return bool
      */
